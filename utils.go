@@ -1,6 +1,14 @@
 package main
 
-import "net/http"
+import (
+	"context"
+	"crypto/tls"
+	"net"
+	"net/http"
+
+	utls "github.com/refraction-networking/utls"
+	"golang.org/x/net/http2"
+)
 
 func SetDefaultHeaders(req *http.Request) {
 	req.Header.Set("Sec-Ch-Ua", `"Not(A:Brand";v="8", "Chromium";v="144"`)
@@ -17,4 +25,33 @@ func SetDefaultHeaders(req *http.Request) {
 	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Connection", "keep-alive")
+}
+
+func chromeDialTlsContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	dialer := net.Dialer{}
+	conn, err := dialer.DialContext(ctx, network, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	host, _, _ := net.SplitHostPort(addr)
+
+	tlsConn := utls.UClient(conn, &utls.Config{
+		ServerName: host,
+	}, utls.HelloChrome_Auto)
+
+	if err := tlsConn.Handshake(); err != nil {
+		return nil, err
+	}
+	return tlsConn, nil
+}
+
+func NewChromeClient() *http.Client {
+	return &http.Client{
+		Transport: &http2.Transport{
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				return chromeDialTlsContext(ctx, network, addr)
+			},
+		},
+	}
 }

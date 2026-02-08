@@ -16,7 +16,7 @@ func main() {
 
 	SetDefaultHeaders(req) // ONLY basic headers that i have with Burp, no cookie ect... (like if it was the first request on a website)
 
-	client := &http.Client{}
+	client := NewChromeClient()
 	res, err := client.Do(req)
 
 	if err != nil {
@@ -36,4 +36,9 @@ func main() {
 	}
 
 	fmt.Println(string(body))
+
+	fmt.Println(res.Header)
+	for _, cookie := range res.Cookies() {
+		fmt.Println(cookie.Name, cookie.Value)
+	}
 }
